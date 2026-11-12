@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ru">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Парашютисты</title>
+    </head>
+    <body></body>
+    <script>
+        let ctx, parachutists, plane, wind;
+
+        class Wind {
+            #phi; #speed; #max_speed
+
+             constructor(max_speed_value) {
+                this.#max_speed = max_speed_value;
+                this.change_direction();
+                this.change_speed();
+            }
+            change_direction() {
+                this.#phi = Math.random() * 2 * Math.PI;
+            }
+            change_speed() {
+                this.#speed = Math.floor(this.#max_speed * Math.random());
+            }
+            get_xprojection() {
+                return this.#speed * Math.cos(this.#phi);
+            }
+            get_yprojection() {
+                return this.#speed * Math.sin(this.#phi);
+            }
+        }
+
+        class Airplane {
+            constructor(x, y, radius) {
+                this.x = x;
+                this.y = y;
+                this.r = radius;
+                this.speed = Math.floor(Math.random() * 15 + 15);
+            }
+            move() {
+                this.x += this.speed; // + Math.floor(Math.random() * 5 - 2);
+            }
+            drop() {
+                parachutists.push(new Parachutist(this.x, this.y));
+            }
+            is_visible() {
+                return plane.x < window.innerWidth * 10 / 11
+            }
+            draw() {
+                const cx = this.x, cy = this.y, r = this.r;
+                ctx.fillStyle = 'white';
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = this.r * 0.04;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                // ========================================================
+                // 1. ОСНОВНОЙ ФЮЗЕЛЯЖ (Развёрнут влево, нос острый и справа)
+                // ========================================================
+                ctx.beginPath();
+                // Начинаем с хвоста (крайняя левая точка)
+                ctx.moveTo(cx - r, cy);                
+                // Верхняя линия корпуса к кабине
+                ctx.lineTo(cx, cy - r * 0.2);
+                ctx.lineTo(cx + r * 0.6, cy - r * 0.18);                
+                // ОСТРЫЙ НОС САМОЛЁТА (крайняя правая точка)
+                ctx.lineTo(cx + r, cy);                
+                // Нижняя линия корпуса обратно к хвосту
+                ctx.lineTo(cx + r * 0.6, cy + r * 0.15);
+                ctx.lineTo(cx, cy + r * 0.2);                
+                ctx.closePath();
+                ctx.fill();
+                // ========================================================
+                // 2. ХВОСТОВОЙ КИЛЬ (Стабилизатор переехал НАЛЕВО)
+                // ========================================================
+                ctx.beginPath();
+                ctx.moveTo(cx - r * 0.7, cy - r * 0.08); // Начало на фюзеляже
+                ctx.lineTo(cx - r * 1.1, cy - r * 0.6);  // Верхушка хвоста (смотрит назад-вверх)
+                ctx.lineTo(cx - r * 0.95, cy - r * 0.6); // Наклон верхушки
+                ctx.lineTo(cx - r * 0.5, cy - r * 0.1);  // Спуск к корпусу
+                ctx.closePath();
+                ctx.fill();
+                // ========================================================
+                // 3. ГЛАВНОЕ КРЫЛО (Развернуто назад-вправо)
+                // ========================================================
+                ctx.beginPath();
+                ctx.moveTo(cx + r * 0.3, cy + r * 0.1);  // Передняя кромка (ближе к носу)
+                ctx.lineTo(cx - r * 0.1, cy + r * 0.6);  // Кончик крыла (уходит назад)
+                ctx.lineTo(cx - r * 0.3, cy + r * 0.6);  // Задняя кромка кончика
+                ctx.lineTo(cx - r * 0.2, cy + r * 0.05); // Возврат к корпусу
+                ctx.closePath();
+                ctx.fill();
+                // ========================================================
+                // 4. ДВИГАТЕЛЬ ПОД КРЫЛОМ (Турбина наклонена в нужную сторону)
+                // ========================================================
+                ctx.beginPath();
+                // Угол наклона Math.PI * -0.08 направляет турбину по ходу движения влево
+                ctx.ellipse(cx + r * 0.1, cy + r * 0.35, r * 0.25, r * 0.08, Math.PI * -0.08, 0, Math.PI * 2);
+                ctx.closePath();
+                ctx.fill();
+            }
+        }
+
+        class Parachutist {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.r = Math.floor(30 * Math.random() + 20);
+                this.speed = this.r % 10 + 10;
+                this.border = Math.floor(Math.random() * window.innerHeight / 5 + window.innerHeight / 2);
+            }
+            isOpened() {
+                return this.y > this.border;
+            }
+            move() {
+                let x_bias, y_bias, delta = 36;
+
+                x_bias = wind.get_xprojection() * delta / this.r;
+                y_bias = wind.get_yprojection() * delta / this.r;
+                if(!this.isOpened()) {
+                    x_bias = 0;
+                    y_bias = Math.abs(y_bias);
+                }
+                this.x += x_bias;
+                this.y += this.speed + y_bias;
+            }
+            draw() {
+                const cx = this.x, cy = this.y, scale = this.r * 0.4, parachuteY = this.y - this.r * 1.8; // Коэффициент масштаба тела относительно r
+
+                ctx.strokeStyle = 'black';
+                ctx.fillStyle = 'black';
+                ctx.lineWidth = this.r * 0.08; // Толщина линий зависит от масштаба
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+
+                // 1. Голова (чуть выше центра тела при падении плашмя)
+                ctx.beginPath();
+                ctx.arc(cx, cy - scale * 0.8, scale * 0.3, 0, Math.PI * 2);
+                ctx.closePath();
+                ctx.fill();
+                // 2. Торс (плотный силуэт)
+                ctx.beginPath();
+                ctx.ellipse(cx, cy, scale * 0.4, scale * 0.6, 0, 0, Math.PI * 2);
+                ctx.closePath();
+                ctx.fill();
+                // 3. Руки, согнутые в локтях (поза стабильного падения)
+                ctx.beginPath();
+                // Левая рука
+                ctx.moveTo(cx - scale * 0.4, cy - scale * 0.2);
+                ctx.lineTo(cx - scale * 1.2, cy - scale * 0.4); // локоть
+                ctx.lineTo(cx - scale * 1.0, cy - scale * 1.0); // кисть
+                // Правая рука
+                ctx.moveTo(cx + scale * 0.4, cy - scale * 0.2);
+                ctx.lineTo(cx + scale * 1.2, cy - scale * 0.4); // локоть
+                ctx.lineTo(cx + scale * 1.0, cy - scale * 1.0); // кисть
+                ctx.closePath();
+                ctx.stroke();
+                // 4. Ноги, согнутые в коленях
+                ctx.beginPath();
+                // Левая нога
+                ctx.moveTo(cx - scale * 0.2, cy + scale * 0.5);
+                ctx.lineTo(cx - scale * 0.8, cy + scale * 1.2); // колено
+                ctx.lineTo(cx - scale * 0.5, cy + scale * 1.8); // ступня
+                // Правая нога
+                ctx.moveTo(cx + scale * 0.2, cy + scale * 0.5);
+                ctx.lineTo(cx + scale * 0.8, cy + scale * 1.2); // колено
+                ctx.lineTo(cx + scale * 0.5, cy + scale * 1.8); // ступня
+                ctx.closePath();
+                ctx.stroke();
+                // 5. Парашютный ранец на спине (квадрат по центру)
+                ctx.fillRect(cx - scale * 0.25, cy - scale * 0.3, scale * 0.5, scale * 0.6);
+                // ==========================================
+                // ЕСЛИ ПАРАШЮТ ОТКРЫТ
+                // ==========================================       
+                if(this.isOpened()) {       
+                    // 1. Рисуем стропы к ранцу (к центру тела)
+                    ctx.beginPath();
+                    ctx.moveTo(cx - this.r, parachuteY);       // Левый край купола
+                    ctx.lineTo(cx, this.y);                     // К центру спины                    
+                    ctx.moveTo(cx - this.r * 0.4, parachuteY + this.r * 0.15); 
+                    ctx.lineTo(cx, this.y);                    
+                    ctx.moveTo(cx + this.r * 0.4, parachuteY + this.r * 0.15); 
+                    ctx.lineTo(cx, this.y);                    
+                    ctx.moveTo(cx + this.r, parachuteY);       // Правый край купола
+                    ctx.lineTo(cx, this.y);
+                    ctx.closePath();
+                    ctx.stroke();
+                    // 2. Купол парашюта (верхняя дуга)
+                    ctx.beginPath();
+                    ctx.arc(cx, parachuteY, this.r, Math.PI, 0, false);                    
+                    // Нижний волнистый край купола
+                    const waveCount = 3;
+                    const waveWidth = (this.r * 2) / waveCount;
+                    for (let i = waveCount - 1; i >= 0; i--) {
+                        const startX = cx - this.r + (i * waveWidth);
+                        const endX = startX + waveWidth;
+                        const midX = startX + (waveWidth / 2);
+                        // Рисуем небольшие дуги внутрь купола
+                        ctx.arc(midX, parachuteY, waveWidth / 2, 0, Math.PI, true);
+                    }
+                    ctx.closePath();
+                    ctx.fill();
+                }
+            }
+        }
+
+        function draw_background(sky_color, ground_color, sun_color, mountain_color) {
+            // sky
+            ctx.fillStyle = sky_color;
+            ctx.fillRect(0, 0, window.innerWidth, Math.floor(window.innerHeight * 3 / 4));
+            // ground
+            ctx.fillStyle = ground_color;
+            ctx.fillRect(0, Math.floor(window.innerHeight * 3 / 4), window.innerWidth, window.innerHeight / 4);
+            // sun
+            ctx.fillStyle = sun_color;
+            ctx.beginPath();
+            ctx.arc(window.innerWidth * 11 / 12, window.innerHeight / 20, window.innerHeight / 30, 0, 2*Math.PI, false);
+            ctx.closePath();
+            ctx.fill();
+            // mountain
+            ctx.fillStyle = mountain_color;
+            ctx.beginPath();
+            ctx.moveTo(0, window.innerHeight * 2 / 5);
+            ctx.lineTo(0, window.innerHeight * 4 / 5);
+            ctx.lineTo(window.innerWidth / 3, window.innerHeight * 4 / 5);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        function draw_scene() {
+            // background colors
+            let sky_color = 'blue', ground_color = 'green', sun_color = 'yellow', mountain_color = 'gray';
+            draw_background(sky_color, ground_color, sun_color, mountain_color);
+            // wind
+            if(Math.random() > 0.9) {
+                wind.change_direction();
+                wind.change_speed();
+            }
+            else if(Math.random() > 0.75) wind.change_speed();
+            // airplane
+            if(parachutists.length < 5) plane.x = window.innerWidth / 10;
+            if(plane.is_visible()) {
+                plane.draw();
+                if(Math.random() > 0.75) plane.drop();
+                plane.move();
+            }
+            // parachutists
+            for(let parachutist of parachutists) {
+                parachutist.draw();
+                parachutist.move();
+            }
+            parachutists = parachutists.filter(parachutist => parachutist.y <= window.innerHeight);
+        }
+
+        window.onload = function() {
+            let canvas = document.createElement('canvas');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            document.getElementsByTagName('body')[0].append(canvas);
+            ctx = canvas.getContext('2d');
+            parachutists = [];
+            wind = new Wind(20);
+            plane = new Airplane(canvas.width / 10, canvas.height / 5, 60);
+            setInterval(() => draw_scene(), 75);
+        }
+    </script>
+</html>
