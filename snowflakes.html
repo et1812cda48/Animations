@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="ru">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Снежинки</title>
+    </head>
+    <body></body>
+    <script>
+        class Wind {
+            #phi; #psy; #speed;
+
+            constructor() {
+                this.change_direction();
+                this.change_speed();
+            }
+
+            change_direction() {
+                this.#phi = Math.random() * 2 * Math.PI;
+                this.#psy = Math.random() * Math.PI;
+            }
+
+            change_speed() {
+                this.#speed = Math.floor(20*Math.random());
+            }
+
+            get_xprojection() {
+                return this.#speed * Math.sin(this.#phi) * Math.cos(this.#psy);
+            }
+
+            get_yprojection() {
+                return this.#speed * Math.sin(this.#phi) * Math.sin(this.#psy);
+            }
+
+            get_zprojection() {
+                return this.#speed * Math.cos(this.#phi);
+            }
+
+            get_angles() {
+                return [this.#phi, this.#psy];
+            }
+
+            draw_windvane(context, width, height) {
+                let angle = Math.PI / 6, delta = Math.floor(width/100);
+                let x = width / 4, y = height * 4 / 5;
+                let delta_x, delta_y;
+                delta_x = (this.get_xprojection() + this.get_zprojection())*Math.cos(angle)*delta;
+                delta_y = (this.get_yprojection() + this.get_zprojection())*Math.sin(angle)*delta;
+                context.fillStyle = "black";
+                context.moveTo(x, y + Math.floor(height/12));
+                context.lineTo(x - Math.floor(width/12), y + Math.floor(height/6));
+                context.lineTo(x + Math.floor(width/12), y + Math.floor(height/6));
+                context.closePath();
+                context.fill();
+                context.strokeStyle = "red";
+                context.lineWidth = 10;
+                context.beginPath();
+                context.moveTo(x - Math.floor(delta_x*3/4), y - Math.floor(delta_y*3/4));
+                context.lineTo(x + Math.floor(delta_x*3/4), y + Math.floor(delta_y*3/4));
+                context.closePath();
+                context.stroke();
+                let left_angle = Math.PI*5/6 + Math.atan2(delta_y, delta_x), right_angle = Math.PI*7/6 + Math.atan2(delta_y, delta_x);
+                context.strokeStyle = "green";
+                context.fillStyle = "green";
+                context.lineWidth = 1;
+                context.moveTo(x + Math.floor(delta_x*5/4), y + Math.floor(delta_y*5/4));
+                context.lineTo(x + Math.floor(delta_x/2 + 2*delta*Math.cos(left_angle)), y + Math.floor(delta_y/2 + 2*delta*Math.sin(left_angle)));
+                context.lineTo(x + Math.floor(delta_x/2 + 2*delta*Math.cos(right_angle)), y + Math.floor(delta_y/2 + 2*delta*Math.sin(right_angle)));
+                context.closePath();
+                context.fill();
+                context.strokeStyle = "black";
+                context.lineWidth = 4;
+                context.beginPath();
+                context.moveTo(x, y);
+                context.lineTo(x, y + Math.floor(height/12));
+                context.closePath();
+                context.stroke();
+            }
+        }
+
+        class Snowflake {
+            #x; #y; #r; #phi; #psy;
+
+            constructor(x, y, radius) {
+                this.#x = x;
+                this.#y = y;
+                this.#r = radius;
+                this.#phi = Math.random() * 2 * Math.PI;
+                this.#psy = Math.random() * Math.PI;
+                this.next = null;
+            }
+
+           draw(context) {
+                let x, y, z, angle = Math.PI / 6;
+                z = this.#r * Math.cos(this.#phi);
+                x = this.#r * Math.sin(this.#phi) *Math.cos(this.#psy);
+                let delta_x = Math.floor((x + z) * Math.cos(angle));
+                y = this.#r * Math.sin(this.#phi) * Math.sin(this.#psy);
+                let delta_y = Math.floor((y + z) * Math.sin(angle));
+                context.beginPath();
+                context.moveTo(this.#x - delta_x, this.#y - delta_y)
+                context.lineTo(this.#x, this.#y);
+                context.moveTo(this.#x - delta_x, this.#y);
+                context.lineTo(this.#x, this.#y);
+                context.moveTo(this.#x - delta_x, this.#y + delta_y);
+                context.lineTo(this.#x, this.#y);
+                context.moveTo(this.#x, this.#y + delta_y);
+                context.lineTo(this.#x, this.#y);
+                context.moveTo(this.#x + delta_x, this.#y + delta_y);
+                context.lineTo(this.#x, this.#y);
+                context.moveTo(this.#x + delta_x, this.#y);
+                context.lineTo(this.#x, this.#y);
+                context.moveTo(this.#x + delta_x, this.#y - delta_y);
+                context.lineTo(this.#x, this.#y);
+                context.moveTo(this.#x, this.#y - delta_y);
+                context.lineTo(this.#x, this.#y);
+                context.closePath();
+                context.strokeStyle = "white";
+                context.lineWidth = 2;
+                context.stroke();
+            }
+
+            move(wind) {
+                let speed_down = 5;
+                this.#x += Math.floor(wind.get_xprojection() / (this.#r*Math.cos(this.#phi)));
+                this.#y += Math.floor(wind.get_yprojection() / (this.#r*Math.sin(this.#psy))) + speed_down;
+            }
+
+            rotate(wind) {
+                /*let turn_angle = Math.PI / 10;
+                if(Math.abs(wind.get_xprojection()) > 0) {
+                    y += wind.get_yprojection() * (Math.cos(turn_angle) - Math.sin(turn_angle));
+                    //this.#z += wind.get_zprojection() * (Math.cos(turn_angle) + Math.sin(turn_angle));
+                }
+                if(Math.abs(wind.get_yprojection()) > 0) {
+                    x += wind.get_xprojection() * (Math.cos(turn_angle) + Math.sin(turn_angle));
+                    //this.#z += wind.get_zprojection() * (Math.cos(turn_angle) - Math.sin(turn_angle));
+                }                
+                if(Math.abs(wind.get_zprojection()) > 0) {
+                    x += wind.get_yprojection() * (Math.cos(turn_angle) - Math.sin(turn_angle));
+                    y += wind.get_zprojection() * (Math.cos(turn_angle) + Math.sin(turn_angle));
+                }
+                return [x, y];*/
+                let angles = wind.get_angles();
+                this.#phi += wind.get_xprojection() * angles[0] / (this.#r*Math.cos(this.#phi));
+                if(Math.abs(this.#phi) >= 2*Math.PI) this.#phi %= 2*Math.PI;
+                this.#psy += wind.get_yprojection() * angles[1] / (this.#r*Math.sin(this.#psy));
+                if(Math.abs(this.#psy) >= 2*Math.PI) this.#psy %= 2*Math.PI;
+            }
+
+            beyond_border(width, height) {
+                let flag = false;
+                if(this.#x < -2*this.#r || this.#x > width + 2*this.#r || this.#y > height + 2*this.#r) flag = !flag;
+                return flag;
+            }
+        }
+
+        function create_snow(head, x_end, y_begin) {
+            let snowflake, dx, dy;
+            while(head.next != null) head = head.next;
+            dx = 7;
+            dy = 100;
+            for(let x=dx; x<x_end-dx; x+=Math.floor(Math.random() * 10 + 5)) {
+                y = Math.floor(Math.random() * dy + 2 + y_begin);
+                radius = Math.floor(Math.random() * 7 + 5);
+                if(Math.random() < 0.5) continue;
+                snowflake = new Snowflake(x, y, radius);
+                snowflake.next = head.next;
+                head.next = snowflake;
+            }
+        }
+
+        window.onload = function() {
+            let canvas = document.createElement("canvas");
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            document.body.appendChild(canvas);
+            let context = canvas.getContext("2d");
+            console.log(canvas.width, canvas.height);
+            let wind = new Wind();
+            let head, ptr, snowflake;
+            head = new Snowflake(null, null, null);
+            for(let y=0; y<canvas.height/2; y+=100) {
+                create_snow(head, canvas.width, y);
+            }
+            setInterval(function() {
+                // sky
+                context.fillStyle = "darkblue";
+                context.fillRect(0, 0, canvas.width, canvas.height);
+                // moon
+                context.beginPath();
+                context.arc(100, 100, 50, 0, 2*Math.PI, false);
+                context.closePath();
+                context.fillStyle = "yellow";//rgba(255,165,0,1);
+                context.fill();
+                // ground
+                context.fillStyle = "white";
+                context.fillRect(0, Math.floor(canvas.height*4/5), canvas.width, Math.floor(canvas.height/5));                
+                // house wall
+                context.fillStyle = "orange";
+                context.fillRect(Math.floor(canvas.width/2) + 50, Math.floor(canvas.height*2/3) - 10, Math.floor(canvas.width/4) - 10, Math.floor(canvas.height/4) + 50);
+                // house window
+                context.fillStyle = "yellow";
+                context.fillRect(Math.floor(canvas.width*5/9) - 10, Math.floor(canvas.height*2/3) + 20, Math.floor(canvas.width/5), Math.floor(canvas.height/5));
+                context.strokeStyle = "brown";
+                context.lineWidth = 4;
+                context.lineCap = "square";
+                context.beginPath();
+                context.moveTo(Math.floor(canvas.width*5/9) - 10, Math.floor(canvas.height*5/6));
+                context.lineTo(Math.floor(canvas.width*34/45) - 11, Math.floor(canvas.height*5/6));
+                context.moveTo(Math.floor(canvas.width*59/90) - 10, Math.floor(canvas.height*2/3) + 20);
+                context.lineTo(Math.floor(canvas.width*59/90) - 10, Math.floor(canvas.height*13/15) + 18);
+                context.moveTo(Math.floor(canvas.width*5/9) - 10, Math.floor(canvas.height*2/3) + 20);
+                context.lineTo(Math.floor(canvas.width*59/90) - 10, Math.floor(canvas.height*5/6));
+                context.lineTo(Math.floor(canvas.width*34/45) - 11, Math.floor(canvas.height*2/3) + 20);
+                context.lineTo(Math.floor(canvas.width*5/9) - 10, Math.floor(canvas.height*2/3) + 20);
+                context.lineTo(Math.floor(canvas.width*5/9) - 10, Math.floor(canvas.height*13/15) + 20);
+                context.moveTo(Math.floor(canvas.width*34/45) - 11, Math.floor(canvas.height*13/15) + 20);
+                context.lineTo(Math.floor(canvas.width*34/45) - 11, Math.floor(canvas.height*2/3) + 20);
+                context.closePath();
+                context.stroke();
+                // house windowsill
+                context.fillStyle = "brown";
+                context.fillRect(Math.floor(canvas.width*5/9) - 10, Math.floor(canvas.height*13/15) + 18, Math.floor(canvas.width/5), Math.floor(canvas.height/20));
+                context.lineCap = "round";
+                context.lineWidth = 3;
+                context.strokeStyle = "white";
+                context.beginPath();
+                context.moveTo(Math.floor(canvas.width*5/9), Math.floor(canvas.height*14/15));
+                context.lineTo(Math.floor(canvas.width*13/18), Math.floor(canvas.height*14/15) - 5);
+                context.closePath();
+                context.stroke();
+                // house roof
+                context.fillStyle = "brown";
+                context.beginPath();
+                context.moveTo(Math.floor(canvas.width/2), Math.floor(canvas.height*2/3));
+                context.lineTo(Math.floor(canvas.width*3/5), Math.floor(canvas.height/3));
+                context.lineTo(Math.floor(canvas.width*4/5), Math.floor(canvas.height*2/3) + 10);
+                context.lineTo(Math.floor(canvas.width/2), Math.floor(canvas.height*2/3));
+                context.closePath();
+                context.fill();
+                // christmas tree
+                context.fillStyle = "green";
+                context.beginPath();
+                context.moveTo(Math.floor(canvas.width*5/6), Math.floor(canvas.height*7/8));
+                context.lineTo(Math.floor(canvas.width*14/15), Math.floor(canvas.height*7/8));
+                context.lineTo(Math.floor(canvas.width*13/15), Math.floor(canvas.height/3));
+                context.fill();
+                context.fillStyle = "red";
+                context.beginPath();
+                context.arc(Math.floor(canvas.width*13/15), Math.floor(canvas.height/3), Math.floor(canvas.width/150), 0, 2*Math.PI, false)
+                context.closePath();
+                context.fill();
+                context.fillStyle = "brown";
+                context.fillRect(Math.floor(canvas.width*13/15) + 12, Math.floor(canvas.height*7/8), Math.floor(canvas.width/80), Math.floor(canvas.height/10));
+                // square
+                context.fillStyle = "brown";
+                context.beginPath();
+                context.moveTo(Math.floor(canvas.width/3), Math.floor(canvas.height*4/5));
+                context.lineTo(Math.floor(canvas.width/3) + 5, canvas.height);
+                context.lineTo(Math.floor(canvas.width*3/10), canvas.height);         
+                context.lineTo(Math.floor(canvas.width/2) + 50, Math.floor(canvas.height*11/12) + 40); 
+                context.lineTo(Math.floor(canvas.width/2) + 50, Math.floor(canvas.height*11/12));   
+                context.lineTo(Math.floor(canvas.width*2/5), Math.floor(canvas.height*4/5));      
+                context.closePath();
+                context.fill();          
+                context.fillStyle = "gray";
+                context.beginPath();
+                context.arc(Math.floor(canvas.width*19/40) + 5, Math.floor(canvas.height*5/6) - 5, 15, 0, 2*Math.PI, false)
+                context.closePath();
+                context.fill(); 
+                // seats
+                context.fillStyle = "lightgray";
+                for(let x=canvas.width/20; x<canvas.width/7; x+=40) {
+                    context.beginPath();
+                    context.arc(x, canvas.height*8/9, 20, 0, 2*Math.PI, false);
+                    context.closePath();
+                    context.fill();
+                }
+                // wind
+                if(Math.random() > 0.9) {
+                    wind.change_direction();
+                    wind.change_speed();
+                }
+                else if(Math.random() > 0.75) wind.change_speed();
+                wind.draw_windvane(context, canvas.width, canvas.height);
+                // snowflakes
+                snowflake = head.next;
+                ptr = head;
+                while(snowflake != null) {
+                    if(snowflake.beyond_border(canvas.width, canvas.height)) {
+                        ptr.next = snowflake.next;
+                        delete snowflake;
+                        snowflake = ptr.next;
+                        continue;
+                    }
+                    snowflake.draw(context);
+                    snowflake.move(wind);
+                    snowflake.rotate(wind);
+                    snowflake = snowflake.next;
+                    ptr = ptr.next;
+                }
+                if(Math.random() > 0.85) create_snow(head, canvas.width, 0);
+            }, 100);
+        }
+    </script>
+</html>
